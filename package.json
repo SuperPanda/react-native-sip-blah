@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "postinstall": "sed -i 's/\r//g' libs.sh && bash libs.sh",
+    "postinstall": "sed -i 's/\\r//g' libs.sh && bash libs.sh",
     "lint": "eslint ./src",
     "generate-docs": "node_modules/.bin/jsdoc --configure .jsdoc.json --verbose"
   },
