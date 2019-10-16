@@ -28,8 +28,5 @@ if [ "$DOWNLOAD" = true ]; then
     curl -L --silent "${URL}" -o "${DEST}"
     tar -xvf "${DEST}"
     rm -f "${DEST}"
-    pwd
-    ls node_modules/react-native-sip
-    cp Call.java android/src/main/org/pjsip/pjsua2/Call.java
     echo "${VERSION}" > ${LOCK}
 fi
