@@ -1,15 +1,11 @@
 {
   "scripts": {
-    "postinstall": "bash libs.sh",
+    "postinstall": "sed -i 's/\r//g' libs.sh && bash libs.sh",
     "lint": "eslint ./src",
     "generate-docs": "node_modules/.bin/jsdoc --configure .jsdoc.json --verbose"
   },
-  "author": {
-    "name": "Florin Dumitru",
-    "email": "dumitru.florin@outlook.com"
-  },
   "bugs": {
-    "url": "https://github.com/florindumitru/react-native-sip/issues"
+    "url": "https://github.com/SuperPanda/react-native-sip/issues"
   },
   "dependencies": {
     "events": "1.1.0"
@@ -28,7 +24,7 @@
   },
   "name": "react-native-sip",
   "description": "SIP module for React Native",
-  "homepage": "https://github.com/florindumitru/react-native-sip",
+  "homepage": "https://github.com/SuperPanda/react-native-sip",
   "keywords": [
     "react-component",
     "react-native",
@@ -44,7 +40,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/florindumitru/react-native-sip.git"
+    "url": "git+https://github.com/SuperPanda/react-native-sip.git"
   },
   "version": "2.8.7"
 }
