@@ -28,8 +28,10 @@ public class PjActions {
     public static final String ACTION_DELETE_ACCOUNT = "account_delete";
     public static final String ACTION_MAKE_CALL = "call_make";
     public static final String ACTION_HANGUP_CALL = "call_hangup";
+    public static final String HANGUP_ALL_CALLS = "all_calls_hangup";
     public static final String ACTION_DECLINE_CALL = "call_decline";
     public static final String ACTION_ANSWER_CALL = "call_answer";
+    public static final String ACTION_CONFERENCE_CALL = "conference_answer";
     public static final String ACTION_HOLD_CALL = "call_hold";
     public static final String ACTION_UNHOLD_CALL = "call_unhold";
     public static final String ACTION_MUTE_CALL = "call_mute";
@@ -129,6 +131,14 @@ public class PjActions {
         return intent;
     }
 
+    public static Intent createHangupAllCallsIntent(int callbackId, Context context) {
+        Intent intent = new Intent(context, PjSipService.class);
+        intent.setAction(PjActions.HANGUP_ALL_CALLS);
+        intent.putExtra("callback_id", callbackId);
+        
+        return intent;
+    }
+
     public static Intent createDeclineCallIntent(int callbackId, int callId, Context context) {
         Intent intent = new Intent(context, PjSipService.class);
         intent.setAction(PjActions.ACTION_DECLINE_CALL);
@@ -146,6 +156,15 @@ public class PjActions {
 
         return intent;
     }
+
+    public static Intent createConferenceCallIntent(int callbackId, int callId, Context context) {
+        Intent intent = new Intent(context, PjSipService.class);
+        intent.setAction(PjActions.ACTION_CONFERENCE_CALL);
+        intent.putExtra("callback_id", callbackId);
+        intent.putExtra("call_id", callId);
+        return intent;
+    }
+
 
     public static Intent createHoldCallIntent(int callbackId, int callId, Context context) {
         Intent intent = new Intent(context, PjSipService.class);

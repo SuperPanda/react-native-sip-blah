@@ -134,6 +134,18 @@ export default class Endpoint extends EventEmitter {
         });
     }
 
+    conferenceCall(call) {
+        return new Promise((resolve, reject) => {
+            NativeModules.PjSipModule.conferenceCall(call.getId(), (successful, data) => {
+                if (successful) {
+                    resolve(data);
+                } else {
+                    reject(data);
+                }
+            });
+        });
+    }
+
     /**
      * @param configuration
      * @returns {Promise}
@@ -144,6 +156,20 @@ export default class Endpoint extends EventEmitter {
                 if (successful) {
                     resolve(data);
                 } else {
+                    reject(data);
+                }
+            });
+        });
+    }
+
+    hangupAllCalls() {
+        return new Promise((resolve, reject) => {
+            NativeModules.PjSipModule.hangupAllCalls((successful, data) => {
+                if (successful) {
+                    console.log("success")
+                    resolve(data);
+                } else {
+                    console.log("failed")
                     reject(data);
                 }
             });

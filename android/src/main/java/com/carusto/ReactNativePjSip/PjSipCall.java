@@ -1,5 +1,6 @@
 package com.carusto.ReactNativePjSip;
 
+import android.util.Log;
 import android.content.Context;
 import android.media.AudioManager;
 import android.util.Log;
@@ -70,7 +71,12 @@ public class PjSipCall extends Call {
 
         // Send reinvite to server for release from hold
         CallOpParam prm = new CallOpParam(true);
-        prm.getOpt().setFlag(1);
+        //prm.getOpt().setFlag(1);
+        CallSetting callSetting = prm.getOpt();
+        callSetting.setAudioCount(1);
+        callSetting.setVideoCount(0);
+
+        callSetting.setFlag(pjsua_call_flag.PJSUA_CALL_UNHOLD.swigValue());
 
         reinvite(prm);
     }

@@ -1,5 +1,5 @@
 package com.carusto.ReactNativePjSip;
-
+import android.app.ActivityManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -30,6 +30,9 @@ import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import org.json.JSONObject;
 import org.pjsip.pjsua2.AccountConfig;
 import org.pjsip.pjsua2.AudDevManager;
+import org.pjsip.pjsua2.AudioMedia;
+import org.pjsip.pjsua2.Media;
+import org.pjsip.pjsua2.CallMediaInfo;
 import org.pjsip.pjsua2.AuthCredInfo;
 import org.pjsip.pjsua2.CallOpParam;
 import org.pjsip.pjsua2.CallSetting;
@@ -50,11 +53,15 @@ import org.pjsip.pjsua2.pjmedia_orient;
 import org.pjsip.pjsua2.pjsip_inv_state;
 import org.pjsip.pjsua2.pjsip_status_code;
 import org.pjsip.pjsua2.pjsip_transport_type_e;
-
+import org.pjsip.pjsua2.pjmedia_type;
+import org.pjsip.pjsua2.pjsua_call_media_status;
+import org.pjsip.pjsua2.pjsua_sip_timer_use;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
 
 public class PjSipService extends Service {
 
@@ -118,12 +125,12 @@ public class PjSipService extends Service {
 
     private void load() {
         // Load native libraries
-        try {
-            System.loadLibrary("openh264");
-        } catch (UnsatisfiedLinkError error) {
-            Log.e(TAG, "Error while loading OpenH264 native library", error);
-            throw new RuntimeException(error);
-        }
+        //try {
+        //    System.loadLibrary("openh264");
+        //} catch (UnsatisfiedLinkError error) {
+        //    Log.e(TAG, "Error while loading OpenH264 native library", error);
+        //    throw new RuntimeException(error);
+        //}
 
         try {
             System.loadLibrary("pjsua2");
@@ -242,10 +249,18 @@ public class PjSipService extends Service {
         }
 
         if (intent != null) {
+            
+            if (!mHandler.getLooper().getThread().isAlive()) {
+                mHandler = new Handler(Looper.getMainLooper());
+            }
             job(new Runnable() {
                 @Override
                 public void run() {
-                    handle(intent);
+                    try {
+                        handle(intent);
+                    } catch (Exception e) {
+                        Log.v("" + e, "a:a");
+                    }
                 }
             });
         }
@@ -255,6 +270,7 @@ public class PjSipService extends Service {
 
     @Override
     public void onDestroy() {
+        unregisterReceiver(mPhoneStateChangedReceiver);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             mWorkerThread.quitSafely();
         }
@@ -262,16 +278,23 @@ public class PjSipService extends Service {
         try {
             if (mEndpoint != null) {
                 mEndpoint.libDestroy();
+                mEndpoint.delete();
             }
         } catch (Exception e) {
             Log.w(TAG, "Failed to destroy PjSip library", e);
         }
 
-        unregisterReceiver(mPhoneStateChangedReceiver);
 
         super.onDestroy();
     }
-
+/*
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        for (PjSipAccount account : mAccounts) {
+            handle(PjActions.createAccountRegisterIntent(999, account.getId(), false, getApplicationContext()));
+        }
+    }
+*/
     private void job(Runnable job) {
         mHandler.post(job);
     }
@@ -339,6 +362,8 @@ public class PjSipService extends Service {
             case PjActions.ACTION_CREATE_ACCOUNT:
                 handleAccountCreate(intent);
                 break;
+            //case PjActions.HANGUP_ALL_CALLS:
+                
             case PjActions.ACTION_REGISTER_ACCOUNT:
                 handleAccountRegister(intent);
                 break;
@@ -347,6 +372,12 @@ public class PjSipService extends Service {
                 break;
 
             // Call actions
+            case PjActions.ACTION_CONFERENCE_CALL:
+                handleCallConference(intent);
+                break;
+            case PjActions.HANGUP_ALL_CALLS:
+                hangupAllCalls();
+                break;
             case PjActions.ACTION_MAKE_CALL:
                 handleCallMake(intent);
                 break;
@@ -388,6 +419,7 @@ public class PjSipService extends Service {
                 break;
             case PjActions.ACTION_DTMF_CALL:
                 handleCallDtmf(intent);
+                break;
             case PjActions.ACTION_CHANGE_CODEC_SETTINGS:
                 handleChangeCodecSettings(intent);
                 break;
@@ -398,6 +430,120 @@ public class PjSipService extends Service {
                 break;
         }
     }
+
+
+    
+    private synchronized void handleCallConference(Intent intent) {
+        try {
+            int callId = intent.getIntExtra("call_id", -1);
+            PjSipCall call = findCall(callId);
+
+            List<AudioMedia> mCallsAudioMedia = new ArrayList<>();
+            List<AudDevManager> mCallsMgr = new ArrayList<>();
+
+            /*
+            For some reason the loop must be in the opposite order
+            or the conference call will not work
+             */
+            for (int i = mCalls.size() - 1; i >= 0; i--) {
+                getAudioMedias(mCalls.get(i), mCallsAudioMedia, mCallsMgr);
+            }
+            List<AudioMedia> allCallsMedias = new ArrayList<>();
+
+            for (int j = 0; j < mCallsAudioMedia.size(); j++) {
+                AudioMedia currAudioMedia = mCallsAudioMedia.get(j);
+                AudDevManager currMgr = mCallsMgr.get(j);
+                allCallsMedias.add(currAudioMedia);
+                allCallsMedias.add(currMgr.getPlaybackDevMedia());
+                allCallsMedias.add(currMgr.getCaptureDevMedia());
+            }
+
+            startConference(mCallsAudioMedia, allCallsMedias);
+
+            mEmitter.fireIntentHandled(intent);
+        } catch (Exception e) {
+            mEmitter.fireIntentHandled(intent, e);
+        }
+    }
+
+    private void startConference(List<AudioMedia> mCallsAudioMedia, List<AudioMedia> allCallsMedias) {
+
+        for (int i = 0; i < mCallsAudioMedia.size(); i++) {
+            for (int j = 0; j < allCallsMedias.size(); j++) {
+                if (!mCallsAudioMedia.get(i).equals(allCallsMedias.get(j))) {
+                    try {
+                        mCallsAudioMedia.get(i).startTransmit(allCallsMedias.get(j));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+//        for (AudioMedia media : allCallsMedias) {
+//            try {
+//                if (!firstMedia.equals(media)) {
+//                    firstMedia.startTransmit(media);
+//                }
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        }
+    }
+
+    private synchronized void getAudioMedias(PjSipCall currCall, List<AudioMedia> mCallsAudioMedia, List<AudDevManager> mCallsMgr) throws Exception {
+        for (int i = 0; i < currCall.getInfo().getMedia().size(); i++) {
+            currCall.unhold();
+            Media media = currCall.getMedia(i);
+            CallMediaInfo mediaInfo = currCall.getInfo().getMedia().get(i);
+            if (mediaInfo.getType() == pjmedia_type.PJMEDIA_TYPE_AUDIO
+                    && media != null
+                    && mediaInfo.getStatus() == pjsua_call_media_status.PJSUA_CALL_MEDIA_ACTIVE) {
+
+                AudioMedia audioMedia = AudioMedia.typecastFromMedia(media);
+                mCallsAudioMedia.add(audioMedia);
+                mCallsMgr.add(currCall.getService().mAccounts.get(0).getService().getAudDevManager());
+                // mgr.getCaptureDevMedia().startTransmit(audioMedia);
+            }
+        }
+    }
+/*
+    private synchronized void handleCallConference(Intent intent) {
+        try {
+            int callId = intent.getIntExtra("call_id", -1);
+            PjSipCall call = findCall(callId);
+            List<AudioMedia> mCallsAudioMedia = new ArrayList<>();
+            List<AudDevManager> mCallsMgr = new ArrayList<>();
+            for (PjSipCall currCall : mCalls)
+            {
+                        for (int i = 0; i < currCall.getInfo().getMedia().size(); i++) {
+                            currCall.unhold();
+                            Media media = currCall.getMedia(i);
+                            CallMediaInfo mediaInfo = currCall.getInfo().getMedia().get(i);
+                            if (mediaInfo.getType() == pjmedia_type.PJMEDIA_TYPE_AUDIO
+                                && media != null
+                                && mediaInfo.getStatus() == pjsua_call_media_status.PJSUA_CALL_MEDIA_ACTIVE) {
+                                AudioMedia audioMedia = AudioMedia.typecastFromMedia(media);
+                                mCallsAudioMedia.add(audioMedia);
+                                mCallsMgr.add(currCall.getService().mAccounts.get(0).getService().getAudDevManager()); // the 0 for the test
+                            }
+                        }
+            }
+             // for (int j =0; j< mCallsAudioMedia.length(); j++)
+            // {
+                AudioMedia currAudioMedia = mCallsAudioMedia.get(0); // the 0 and 1 only for testing
+                AudioMedia secAudioMedia = mCallsAudioMedia.get(1);
+                AudDevManager currMgr = mCallsMgr.get(0);
+                AudDevManager secMgr = mCallsMgr.get(1);
+                currMgr.getCaptureDevMedia().startTransmit(secAudioMedia);
+                secMgr.getCaptureDevMedia().startTransmit(currAudioMedia);
+            // }
+             mEmitter.fireIntentHandled(intent);
+        } catch (Exception e) {
+            mEmitter.fireIntentHandled(intent, e);
+        }
+    }
+*/
 
     private void handleStart(Intent intent) {
         try {
@@ -446,6 +592,30 @@ public class PjSipService extends Service {
     }
 
     private void handleAccountCreate(Intent intent) {
+/*        if (mAccounts.size() > 0) {
+            try {
+                PjSipAccount currAccount = mAccounts.get(0);
+                if (currAccount.isValid()) {
+                    currAccount.register(true);
+                } else {
+                    currAccount.delete();
+                    mAccounts.remove(0);
+                    createAccount(intent);
+                }
+                mEmitter.fireAccountCreated(intent, currAccount);
+            } catch (Exception e) {
+                Log.d("Harel", "register account failed " + mAccounts.get(0).toJson());
+                if (mAccounts.get(0) != null) {
+                    mAccounts.get(0).delete();
+                    mAccounts.remove(0);
+                    createAccount(intent);
+                }
+            }
+        } else {
+            createAccount(intent);
+        }
+    }*/
+    
         try {
             AccountConfigurationDTO accountConfiguration = AccountConfigurationDTO.fromIntent(intent);
             PjSipAccount account = doAccountCreate(accountConfiguration);
@@ -456,7 +626,18 @@ public class PjSipService extends Service {
             mEmitter.fireIntentHandled(intent, e);
         }
     }
-
+        /*
+        private void createAccount(Intent intent) {
+            try {
+                AccountConfigurationDTO accountConfiguration = AccountConfigurationDTO.fromIntent(intent);
+                PjSipAccount account = doAccountCreate(accountConfiguration);
+    
+                // Emmit response
+                mEmitter.fireAccountCreated(intent, account);
+            } catch (Exception e) {
+                mEmitter.fireIntentHandled(intent, e);
+            }
+        }*/
     private void handleAccountRegister(Intent intent) {
         try {
             int accountId = intent.getIntExtra("account_id", -1);
@@ -555,13 +736,16 @@ public class PjSipService extends Service {
             cfg.getSipConfig().setProxies(v);
         }
 
+         cfg.getCallConfig().setTimerUse(pjsua_sip_timer_use.PJSUA_SIP_TIMER_INACTIVE);
         cfg.getMediaConfig().getTransportConfig().setQosType(pj_qos_type.PJ_QOS_TYPE_VOICE);
 
-        cfg.getVideoConfig().setAutoShowIncoming(true);
-        cfg.getVideoConfig().setAutoTransmitOutgoing(true);
+        cfg.getVideoConfig().setAutoShowIncoming(false);
+        //cfg.getVideoConfig().setAutoShowIncoming(true);
+        cfg.getVideoConfig().setAutoTransmitOutgoing(false);
+        //cfg.getVideoConfig().setAutoTransmitOutgoing(true);
 
-        int cap_dev = cfg.getVideoConfig().getDefaultCaptureDevice();
-        mEndpoint.vidDevManager().setCaptureOrient(cap_dev, pjmedia_orient.PJMEDIA_ORIENT_ROTATE_270DEG, true);
+        //int cap_dev = cfg.getVideoConfig().getDefaultCaptureDevice();
+        //mEndpoint.vidDevManager().setCaptureOrient(cap_dev, pjmedia_orient.PJMEDIA_ORIENT_ROTATE_270DEG, true);
 
         // -----
 
@@ -680,6 +864,14 @@ public class PjSipService extends Service {
             mEmitter.fireIntentHandled(intent);
         } catch (Exception e) {
             mEmitter.fireIntentHandled(intent, e);
+        }
+    }
+
+    private void hangupAllCalls() {
+        try {
+            mEndpoint.hangupAllCalls();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -906,6 +1098,7 @@ public class PjSipService extends Service {
 
     private PjSipCall findCall(int id) throws Exception {
         for (PjSipCall call : mCalls) {
+            Log.w("PjSipService", "[findCall] Call id \"" + id + "\" found");
             if (call.getId() == id) {
                 return call;
             }
@@ -1011,7 +1204,8 @@ public class PjSipService extends Service {
                     mWifiLock.acquire();
 
                     if (callState == pjsip_inv_state.PJSIP_INV_STATE_EARLY || callState == pjsip_inv_state.PJSIP_INV_STATE_CONFIRMED) {
-                        mAudioManager.setMode(AudioManager.MODE_IN_CALL);
+                        mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                        mAudioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE);
                     }
                 }
             });

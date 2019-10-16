@@ -7,3 +7,4 @@ android/src/main/jniLibs/
 ios/VialerPJSIP.framework/
 .libs.lock
 .libs.tar.gz
+!android/src/main/java/org/pjsip/pjsua2/Call.java

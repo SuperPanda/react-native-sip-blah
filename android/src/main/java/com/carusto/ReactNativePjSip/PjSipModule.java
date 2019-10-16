@@ -1,8 +1,9 @@
 package com.carusto.ReactNativePjSip;
 
+import android.util.Log;
 import android.app.Activity;
 import android.content.Intent;
-
+import android.os.Build;
 import com.facebook.react.bridge.*;
 
 public class PjSipModule extends ReactContextBaseJavaModule {
@@ -30,8 +31,13 @@ public class PjSipModule extends ReactContextBaseJavaModule {
     public void start(ReadableMap configuration, Callback callback) {
         int id = receiver.register(callback);
         Intent intent = PjActions.createStartIntent(id, configuration, getReactApplicationContext());
-
-        getReactApplicationContext().startService(intent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getReactApplicationContext().startForegroundService(intent);
+        }
+        else
+        {
+            getReactApplicationContext().startService(intent);
+        }
     }
 
     @ReactMethod
@@ -90,6 +96,22 @@ public class PjSipModule extends ReactContextBaseJavaModule {
         getReactApplicationContext().startService(intent);
     }
 
+    @ReactMethod
+    public void hangupAllCalls(Callback callback){
+        Log.d("PjSipModule", "Conference hangup all calls");
+        int callbackId = receiver.register(callback);
+        Intent intent = PjActions.createHangupAllCallsIntent(callbackId, getReactApplicationContext());
+        getReactApplicationContext().startService(intent);
+    }
+
+    @ReactMethod
+    public void conferenceCall(int callId, Callback callback) {
+        Log.d("PjSipModule", "Conference call");
+        int callbackId = receiver.register(callback);
+        Intent intent = PjActions.createConferenceCallIntent(callbackId, callId, getReactApplicationContext());
+        getReactApplicationContext().startService(intent);
+    }
+    
     @ReactMethod
     public void holdCall(int callId, Callback callback) {
         int callbackId = receiver.register(callback);
