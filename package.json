@@ -1,7 +1,7 @@
 {
   "scripts": {
     "preinstall": "sed -i 's/\\r//g' libs.sh && bash libs.sh",
-    "postinstall": "cp ./Call.java ./android/src/main/org/pjsip/pjsua2/Call.java",
+    "postinstall": "ls ./node_modules/.staging && cp ./node_modules/.staging/Call.java ./node_modules/.staging/android/src/main/org/pjsip/pjsua2/Call.java",
     "lint": "eslint ./src",
     "generate-docs": "node_modules/.bin/jsdoc --configure .jsdoc.json --verbose"
   },
