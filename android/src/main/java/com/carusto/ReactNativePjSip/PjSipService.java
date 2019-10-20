@@ -131,7 +131,6 @@ public class PjSipService extends Service {
         //    Log.e(TAG, "Error while loading OpenH264 native library", error);
         //    throw new RuntimeException(error);
         //}
-
         try {
             System.loadLibrary("pjsua2");
         } catch (UnsatisfiedLinkError error) {
@@ -218,6 +217,7 @@ public class PjSipService extends Service {
     @Override
     public int onStartCommand(final Intent intent, int flags, int startId) {
         if (!mInitialized) {
+            
             if (intent != null && intent.hasExtra("service")) {
                 mServiceConfiguration = ServiceConfigurationDTO.fromMap((Map) intent.getSerializableExtra("service"));
             }
@@ -249,7 +249,6 @@ public class PjSipService extends Service {
         }
 
         if (intent != null) {
-            
             if (!mHandler.getLooper().getThread().isAlive()) {
                 mHandler = new Handler(Looper.getMainLooper());
             }
@@ -287,14 +286,7 @@ public class PjSipService extends Service {
 
         super.onDestroy();
     }
-/*
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        for (PjSipAccount account : mAccounts) {
-            handle(PjActions.createAccountRegisterIntent(999, account.getId(), false, getApplicationContext()));
-        }
-    }
-*/
+
     private void job(Runnable job) {
         mHandler.post(job);
     }
@@ -362,8 +354,6 @@ public class PjSipService extends Service {
             case PjActions.ACTION_CREATE_ACCOUNT:
                 handleAccountCreate(intent);
                 break;
-            //case PjActions.HANGUP_ALL_CALLS:
-                
             case PjActions.ACTION_REGISTER_ACCOUNT:
                 handleAccountRegister(intent);
                 break;
@@ -618,9 +608,16 @@ public class PjSipService extends Service {
         try {
             while (mAccounts.size() > 0) {
                 PjSipAccount currAccount = mAccounts.get(0);
-                Log.d(TAG, "removing account" + currAccount.toJson());
-                currAccount.delete();
-                mAccounts.remove(0);
+                if (currAccount.isValid()){
+                    currAccount.register(true);
+                    Log.d(TAG, "Using existing account");
+                    mEmitter.fireAccountCreated(intent, currAccount);
+                    return;
+                } else {
+                    Log.d(TAG, "removing account" + currAccount.toJson());
+                    currAccount.delete();
+                    mAccounts.remove(0);
+                }
             }
         } catch (Exception e) {
             Log.w(TAG, "failed to remove account");
