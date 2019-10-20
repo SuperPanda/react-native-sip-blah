@@ -366,7 +366,7 @@ public class PjSipService extends Service {
                 handleCallConference(intent);
                 break;
             case PjActions.HANGUP_ALL_CALLS:
-                hangupAllCalls();
+                hangupAllCalls(intent);
                 break;
             case PjActions.ACTION_MAKE_CALL:
                 handleCallMake(intent);
@@ -873,11 +873,13 @@ public class PjSipService extends Service {
         }
     }
 
-    private void hangupAllCalls() {
+    private void hangupAllCalls(Intent intent) {
         try {
             mEndpoint.hangupAllCalls();
+            mEmitter.fireIntentHandled(intent);
         } catch (Exception e) {
             e.printStackTrace();
+            mEmitter.fireIntentHandled(intent, e);
         }
     }
 
