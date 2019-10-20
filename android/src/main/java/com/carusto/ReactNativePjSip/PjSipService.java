@@ -615,8 +615,17 @@ public class PjSipService extends Service {
             createAccount(intent);
         }
     }*/
-    
         try {
+            while (mAccounts.size() > 0) {
+                PjSipAccount currAccount = mAccounts.get(0);
+                Log.d(TAG, "removing account" + currAccount.toJson());
+                currAccount.delete();
+                mAccounts.remove(0);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "failed to remove account");
+        }
+        try {            
             AccountConfigurationDTO accountConfiguration = AccountConfigurationDTO.fromIntent(intent);
             PjSipAccount account = doAccountCreate(accountConfiguration);
 
