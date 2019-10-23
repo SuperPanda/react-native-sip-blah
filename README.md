@@ -115,6 +115,9 @@ endpoint.addListener("call_terminated", (newCall) => {
 4. [Settings](https://github.com/florindumitru/react-native-sip/blob/master/docs/settings.md)
 
 
+## Current issues
+1. Accounts don't swap until the application is forcably closed (the application runs in the background when the app is off, so it needs to be forcibly close), if someone wants to send a patch, that would be nice :)
 
-
-*This repo it's based on a fork of [datso/react-native-pjsip](https://github.com/datso/react-native-pjsip).* 
+* This repo is based on a fork of [florindumitru/react-native-sip](https://github.com/florindumitru/react-native-sip) which is *
+* based on a fork of [datso/react-native-pjsip](https://github.com/datso/react-native-pjsip) *
+* and implements conference call features from [AssacNetworks/react-native-pjsip-assac](https://github.com/AssacNetworks/react-native-pjsip-assac) -- only implemented android changes so far *
