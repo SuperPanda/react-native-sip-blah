@@ -596,42 +596,12 @@ public class PjSipService extends Service {
     }
 
     private void handleAccountCreate(Intent intent) {
-/*        if (mAccounts.size() > 0) {
-            try {
-                PjSipAccount currAccount = mAccounts.get(0);
-                if (currAccount.isValid()) {
-                    currAccount.register(true);
-                } else {
-                    currAccount.delete();
-                    mAccounts.remove(0);
-                    createAccount(intent);
-                }
-                mEmitter.fireAccountCreated(intent, currAccount);
-            } catch (Exception e) {
-                Log.d("Harel", "register account failed " + mAccounts.get(0).toJson());
-                if (mAccounts.get(0) != null) {
-                    mAccounts.get(0).delete();
-                    mAccounts.remove(0);
-                    createAccount(intent);
-                }
-            }
-        } else {
-            createAccount(intent);
-        }
-    }*/
         try {
             while (mAccounts.size() > 0) {
                 PjSipAccount currAccount = mAccounts.get(0);
-                if (currAccount.isValid()){
-                    currAccount.register(true);
-                    Log.d(TAG, "Using existing account");
-                    mEmitter.fireAccountCreated(intent, currAccount);
-                    return;
-                } else {
-                    Log.d(TAG, "removing account" + currAccount.toJson());
-                    currAccount.delete();
-                    mAccounts.remove(0);
-                }
+                Log.d(TAG, "removing account" + currAccount.toJson());
+                currAccount.delete();
+                mAccounts.remove(0);
             }
         } catch (Exception e) {
             Log.w(TAG, "failed to remove account");
@@ -640,24 +610,13 @@ public class PjSipService extends Service {
             AccountConfigurationDTO accountConfiguration = AccountConfigurationDTO.fromIntent(intent);
             PjSipAccount account = doAccountCreate(accountConfiguration);
 
-            // Emmit response
+            // Emit response
             mEmitter.fireAccountCreated(intent, account);
         } catch (Exception e) {
             mEmitter.fireIntentHandled(intent, e);
         }
     }
-        /*
-        private void createAccount(Intent intent) {
-            try {
-                AccountConfigurationDTO accountConfiguration = AccountConfigurationDTO.fromIntent(intent);
-                PjSipAccount account = doAccountCreate(accountConfiguration);
-    
-                // Emmit response
-                mEmitter.fireAccountCreated(intent, account);
-            } catch (Exception e) {
-                mEmitter.fireIntentHandled(intent, e);
-            }
-        }*/
+
     private void handleAccountRegister(Intent intent) {
         try {
             int accountId = intent.getIntExtra("account_id", -1);
