@@ -309,11 +309,25 @@ public class PjSipService extends Service {
         // Remove link to account
         mAccounts.remove(account);
 
-        // Remove transport
+        // this should not be done, and is incorrect
+        // this prevents the transport from being used by other accounts
+        // that are added in the future. for example, if you add a TLS account
+        // and then remove it. Next time you add a TLS account it will not 
+        // be able to make calls
+
+        // // Remove transport
+        // try {
+        //     mEndpoint.transportClose(account.getTransportId());
+        // } catch (Exception e) {
+        //     Log.w(TAG, "Failed to close transport for account", e);
+        // }
+
+        // IMO, the proper implementation would be:
         try {
-            mEndpoint.transportClose(account.getTransportId());
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to close transport for account", e);
+            account.shutdown();
+        }
+        catch (Exception e) {
+            Log.w(TAG, "Failed to shutdown account", e);
         }
 
         // Remove account in PjSip
